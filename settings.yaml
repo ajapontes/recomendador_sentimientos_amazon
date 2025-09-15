@@ -1,0 +1,17 @@
+project:
+  name: recomendador_sentimientos_amazon
+  seed: 42
+
+paths:
+  data_raw: ./data/raw
+  data_processed: ./data/processed
+
+model:
+  # Modelo de sentimiento (Transformers)
+  sentiment_model: distilbert-base-uncased-finetuned-sst-2-english
+  # Intentaremos usar CUDA si está disponible
+  use_cuda: true
+
+api:
+  host: 0.0.0.0
+  port: 8002

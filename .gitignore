@@ -1,0 +1,88 @@
+# Crear el archivo si no existe
+ni .gitignore -ItemType File -Force
+
+# Escribir contenido recomendado
+@'
+# ===========================
+# Entorno / Python
+# ===========================
+env/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.Python
+
+# ===========================
+# Datos y artefactos pesados
+# ===========================
+data/raw/
+data/processed/
+data/**/*.parquet
+data/**/*.csv
+data/**/*.json
+data/**/*.tsv
+!data/.gitkeep
+
+# Modelos, checkpoints, resultados, logs, imágenes grandes
+checkpoints/
+models/
+results/
+images/
+logs/
+artifacts/
+!checkpoints/.gitkeep
+!models/.gitkeep
+!results/.gitkeep
+!images/.gitkeep
+!logs/.gitkeep
+!artifacts/.gitkeep
+
+# ===========================
+# Notebooks y caches
+# ===========================
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# ===========================
+# Configuración local / credenciales
+# ===========================
+.env
+.env.*
+!.env.example
+settings.local.yaml
+
+# ===========================
+# Herramientas y coverage
+# ===========================
+dist/
+build/
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.cache/
+pip-wheel-metadata/
+wheels/
+
+# ===========================
+# IDE / SO
+# ===========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ===========================
+# Node (por si hay UI/API híbrida)
+# ===========================
+node_modules/
+'@ | Set-Content -Path .gitignore -Encoding utf8

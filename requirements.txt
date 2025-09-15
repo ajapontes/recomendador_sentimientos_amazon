@@ -1,0 +1,11 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+torch==2.8.0+cu126
+torchvision==0.23.0+cu126
+torchaudio==2.8.0+cu126
+transformers==4.56.1
+pandas==2.3.2
+scikit-learn==1.7.2
+PyYAML==6.0.2
+datasets==3.0.2        # ⚠️ Ajustar si usas una versión distinta al instalar datasets
+pyarrow==16.1.0        # ⚠️ Ajustar si tu pip list muestra otra versión
