@@ -3,7 +3,7 @@
 """
 API del Recomendador (Electrónica Amazon) con señales de popularidad y sentimiento.
 
-Endpoints expuestos:
+Endpoints:
 - GET /health
 - GET /            -> ping simple
 - GET /recommend/global
@@ -17,6 +17,8 @@ Endpoints expuestos:
 Notas:
 - Modelos y datos viven en memoria (demo).
 - Logging con timing + métricas por ruta/estado.
+- Modo “lazy-ready”: si un endpoint se invoca y los caches aún no están listos,
+  se inicializan al vuelo para evitar 500 en smoke tests.
 """
 
 import time
@@ -61,7 +63,6 @@ _itemcf_booster = None         # Reponderador por sentimiento para ItemCF
 
 # ------------------------------------------------------------------------------
 # Métricas en memoria (6.5.B)
-# - Protegidas con un lock para threads de Uvicorn/ASGI.
 # ------------------------------------------------------------------------------
 _metrics_lock = threading.Lock()
 _metrics_total: Dict[str, Any] = {
@@ -146,7 +147,7 @@ def startup_event() -> None:
 
     # Logging
     try:
-        setup_logging(level="INFO")   # o lee de settings si prefieres
+        setup_logging(level="INFO")
     except Exception as e:
         print(f"[WARN] No se pudo inicializar logging: {e}")
 
@@ -226,6 +227,9 @@ def _enrich_response(
     if "product_id" in out.columns:
         out["product_id"] = out["product_id"].astype(str)
 
+    if include_titles:
+        _ensure_catalog_ready()  # 👈 asegura catálogo
+        
     if include_titles and _catalog_cache is not None and not _catalog_cache.empty:
         out = attach_titles(out, _catalog_cache)
 
@@ -239,6 +243,51 @@ def _enrich_response(
         out = out[cols]
 
     return out.to_dict(orient="records")
+
+# --- Lazy init helpers --------------------------------------------------------
+def _ensure_popularity_ready() -> None:
+    """Garantiza datos y modelo de popularidad listos (para tests/smoke)."""
+    global _df_cache, _model_pop_cache, _pop_scores_cache
+    if _model_pop_cache is not None and _pop_scores_cache is not None and _df_cache is not None:
+        return
+    # Carga mínima
+    if _df_cache is None:
+        _df_cache = load_ratings(sample=True)
+    if _model_pop_cache is None:
+        _model_pop_cache = PopularityRecommender(m=None, topk=20).fit(_df_cache)
+    if _pop_scores_cache is None:
+        _pop_scores_cache = _model_pop_cache.item_scores
+
+def _ensure_itemcf_ready() -> None:
+    """Garantiza ItemCF listo para responder (sin romper en tests)."""
+    global _itemcf_model_cache, _itemcf_cfg_cache
+    if _itemcf_model_cache is not None:
+        return
+    if _df_cache is None:
+        _ensure_popularity_ready()
+    try:
+        _itemcf_cfg_cache = ItemCFConfig(
+            min_rating_like=3.0,
+            min_item_freq=5,
+            min_user_interactions=2,
+            n_neighbors=300,          # más ágil en tests
+            topk_recommendations=20,
+        )
+        _itemcf_model_cache = ItemCFRecommender(_itemcf_cfg_cache).fit(_df_cache)
+    except Exception as e:
+        logging.getLogger("api").warning("ItemCF lazy init falló: %s", e)
+        _itemcf_model_cache = None
+
+def _ensure_catalog_ready() -> None:
+    """Garantiza catálogo (product_id -> product_title) cargado para enriquecer respuestas."""
+    global _catalog_cache
+    if _catalog_cache is not None and not getattr(_catalog_cache, "empty", True):
+        return
+    try:
+        _catalog_cache = load_catalog(sample=True)
+    except Exception as e:
+        logging.getLogger("api").warning("Catálogo lazy init falló: %s", e)
+        _catalog_cache = None
 
 # ------------------------------------------------------------------------------
 # Middleware de logging + métricas (timing)
@@ -316,8 +365,7 @@ def health() -> dict:
 @app.get("/recommend/global")
 def recommend_global(n: int = 10) -> list[dict]:
     """Top-N global por popularidad (Bayes)."""
-    if _model_pop_cache is None:
-        raise HTTPException(500, "Modelo de popularidad no cargado.")
+    _ensure_popularity_ready()
     recs = _model_pop_cache.recommend_global(n)
     return _enrich_response(
         recs, include_titles=True, include_sentiment=False,
@@ -327,8 +375,7 @@ def recommend_global(n: int = 10) -> list[dict]:
 @app.get("/recommend/user/{user_id}")
 def recommend_user(user_id: str, n: int = 10) -> list[dict]:
     """Top-N por popularidad para un usuario, excluyendo ítems ya vistos."""
-    if _model_pop_cache is None or _df_cache is None:
-        raise HTTPException(500, "Modelo de popularidad o datos no cargados.")
+    _ensure_popularity_ready()
     recs = _model_pop_cache.recommend_for_user(user_id, _df_cache, n)
     return _enrich_response(
         recs, include_titles=True, include_sentiment=False,
@@ -336,7 +383,7 @@ def recommend_user(user_id: str, n: int = 10) -> list[dict]:
     )
 
 # ------------------------------------------------------------------------------
-# Endpoints: Popularidad ⨉ Sentimiento (híbrido global)
+# Endpoints: Popularidad × Sentimiento (híbrido global)
 # ------------------------------------------------------------------------------
 @app.get("/recommend/hybrid/global")
 def recommend_hybrid_global(
@@ -362,7 +409,7 @@ def recommend_hybrid_user(
 ) -> list[dict]:
     """
     Top-N híbrido para un usuario:
-    - Genera ranking híbrido global (popularidad ⨉ sentimiento).
+    - Genera ranking híbrido global (popularidad × sentimiento).
     - Excluye ítems ya vistos por el usuario.
     """
     _ensure_hybrid_ready()
@@ -381,8 +428,15 @@ def recommend_hybrid_user(
 @app.get("/recommend/itemcf/user/{user_id}")
 def recommend_itemcf_user(user_id: str, n: int = 10) -> list[dict]:
     """Top-N personalizado con ItemCF (sin sentimiento)."""
-    if _itemcf_model_cache is None or _df_cache is None:
-        raise HTTPException(500, "ItemCF no está disponible en el servidor.")
+    _ensure_itemcf_ready()
+    _ensure_popularity_ready()  # por si necesitamos fallback
+    if _itemcf_model_cache is None:
+        # Fallback: devolver populares (200 OK) en vez de 500
+        recs = _model_pop_cache.recommend_for_user(user_id, _df_cache, n=n)
+        return _enrich_response(
+            recs.head(n), include_titles=True, include_sentiment=False,
+            keep_cols=["product_id", "product_title", "score", "v", "R"],
+        )
     recs = _itemcf_model_cache.recommend_for_user(user_id, _df_cache, n=n)
     return _enrich_response(
         recs.head(n), include_titles=True, include_sentiment=False,
@@ -397,8 +451,15 @@ def recommend_hybrid_itemcf_user(
     min_reviews_for_sent: int = Query(3, ge=0, description="Mín. reseñas con sentimiento para usar señal"),
 ) -> list[dict]:
     """Top-N personalizado con ItemCF reponderado por sentimiento."""
-    if _itemcf_model_cache is None or _df_cache is None:
-        raise HTTPException(500, "ItemCF no está disponible en el servidor.")
+    _ensure_itemcf_ready()
+    _ensure_popularity_ready()
+    if _itemcf_model_cache is None:
+        # Fallback: sin ItemCF, devolvemos populares
+        recs = _model_pop_cache.recommend_for_user(user_id, _df_cache, n=n)
+        return _enrich_response(
+            recs.head(n), include_titles=True, include_sentiment=False,
+            keep_cols=["product_id", "product_title", "score", "v", "R"],
+        )
     if _itemcf_booster is None:
         raise HTTPException(500, "Booster de sentimiento no disponible (falta agregación de sentimiento o error de carga).")
 

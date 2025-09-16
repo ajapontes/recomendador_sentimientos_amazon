@@ -1,0 +1,22 @@
+# pyproject.toml
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+exclude = '''
+/(
+    env
+  | \.git
+  | \.venv
+  | build
+  | dist
+  | data
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["env", ".venv", "data", "build", "dist"]
+# Conjunto de reglas útil sin ser molesto
+lint.select = ["E", "F", "I", "UP", "B", "SIM"]
+lint.ignore = ["E203", "E266", "E501"]  # coherente con black
