@@ -7,5 +7,5 @@ transformers==4.56.1
 pandas==2.3.2
 scikit-learn==1.7.2
 PyYAML==6.0.2
-datasets==3.0.2        # ⚠️ Ajustar si usas una versión distinta al instalar datasets
-pyarrow==16.1.0        # ⚠️ Ajustar si tu pip list muestra otra versión
+datasets==4.0.0
+pyarrow==21.0.0
