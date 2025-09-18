@@ -1,8 +1,3 @@
-# Crear el archivo si no existe
-ni .gitignore -ItemType File -Force
-
-# Escribir contenido recomendado
-@'
 # ===========================
 # Entorno / Python
 # ===========================
@@ -16,17 +11,27 @@ __pycache__/
 *.egg-info/
 *.egg
 .Python
+.python-version
+.ruff_cache/
 
 # ===========================
 # Datos y artefactos pesados
 # ===========================
 data/raw/
 data/processed/
+data/in/
+data/tmp/
 data/**/*.parquet
 data/**/*.csv
 data/**/*.json
 data/**/*.tsv
+data/**/*.gz
+data/**/*.zip
 !data/.gitkeep
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/in/.gitkeep
+!data/tmp/.gitkeep
 
 # Modelos, checkpoints, resultados, logs, imágenes grandes
 checkpoints/
@@ -41,6 +46,12 @@ artifacts/
 !images/.gitkeep
 !logs/.gitkeep
 !artifacts/.gitkeep
+
+# Cachés locales (Hugging Face / Datasets / genérico)
+.cache/
+huggingface/
+datasets/
+hf_cache/
 
 # ===========================
 # Notebooks y caches
@@ -66,12 +77,14 @@ htmlcov/
 .nox/
 .coverage
 .coverage.*
+coverage.xml
 .pytest_cache/
-.mypy_cache/
 .pyre/
-.cache/
+.mypy_cache/
 pip-wheel-metadata/
 wheels/
+pytestdebug.log
+reports/
 
 # ===========================
 # IDE / SO
@@ -85,4 +98,3 @@ Thumbs.db
 # Node (por si hay UI/API híbrida)
 # ===========================
 node_modules/
-'@ | Set-Content -Path .gitignore -Encoding utf8
