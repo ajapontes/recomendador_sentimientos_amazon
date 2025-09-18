@@ -1,0 +1,57 @@
+# =========================
+# Stage 1 — builder
+# =========================
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# Dependencias mínimas para wheels científicas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+# Venv aislado
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+# Instalar deps primero (mejor cache)
+COPY requirements-docker.txt .
+RUN pip install --upgrade pip && pip install -r requirements-docker.txt
+
+# =========================
+# Stage 2 — runtime
+# =========================
+FROM python:3.11-slim AS runtime
+
+# Librerías runtime usadas por numpy/sklearn (OpenMP)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    HF_HUB_DISABLE_SYMLINKS_WARNING=1
+
+WORKDIR /app
+
+# Copiar venv ya resuelto
+COPY --from=builder /opt/venv /opt/venv
+
+# Copiar código y configuración ligera
+COPY src ./src
+COPY settings.yaml ./settings.yaml
+# Crear estructura de datos vacía (montaremos como volumen afuera)
+RUN mkdir -p data/raw data/processed data/in
+
+EXPOSE 8002
+
+# Healthcheck simple
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD \
+  wget -qO- http://localhost:8002/health || exit 1
+
+# Entrypoint de la API
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8002"]

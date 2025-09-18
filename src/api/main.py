@@ -366,6 +366,7 @@ def health() -> dict:
 def recommend_global(n: int = 10) -> list[dict]:
     """Top-N global por popularidad (Bayes)."""
     _ensure_popularity_ready()
+    _ensure_catalog_ready()  # opcional, ya lo hace _enrich_response
     recs = _model_pop_cache.recommend_global(n)
     return _enrich_response(
         recs, include_titles=True, include_sentiment=False,
