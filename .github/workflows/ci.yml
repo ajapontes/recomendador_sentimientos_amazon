@@ -82,10 +82,20 @@ jobs:
       # --- Tests + Coverage ---
       - name: Run unit tests with coverage
         env:
-          PYTHONPATH: ./  # <-- añade la raíz del repo al PYTHONPATH
+          PYTHONPATH: ${{ github.workspace }}/recomendador_sentimientos_amazon
         run: |
+          echo "Using PYTHONPATH=$PYTHONPATH"
           pytest -q --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
           coverage xml -o coverage.xml
+
+      # --- Verificación automática ---
+      - name: Verify pytest log not empty
+        run: |
+          if [ ! -s pytest.log ]; then
+            echo "❌ pytest.log está vacío: no se ejecutaron tests"
+            exit 1
+          fi
+          echo "✅ pytest.log contiene resultados"
 
       # --- Guardar artefactos ---
       - name: Upload pytest log
