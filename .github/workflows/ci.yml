@@ -1,17 +1,17 @@
-name: CI - Build, Test & Report
+name: CI - Build, Lint, Test & Report
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 permissions:
   contents: read
 
 jobs:
-  test-project:
-    name: Run unit tests (Python ${{ matrix.python-version }} • ${{ matrix.os }})
+  ci-pipeline:
+    name: Python CI (v${{ matrix.python-version }} • ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,15 +19,12 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.11"]
 
-    env:
-      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
-      CUDA_VISIBLE_DEVICES: ""
-      PYTHONPATH: "src"
-
     steps:
+      # --- Código fuente ---
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --- Python + caché ---
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -40,44 +37,41 @@ jobs:
           pip -V
 
       # --- Dependencias ---
-      - name: Prepare CI requirements (exclude CUDA wheels)
+      - name: Prepare CI requirements (sin CUDA)
         run: |
           awk '!/^(torch|torchvision|torchaudio)==/' requirements.txt > requirements.ci.txt
           echo "requirements.ci.txt:"
           cat requirements.ci.txt
 
-      - name: Install dependencies (project)
+      - name: Install dependencies
         run: |
           pip install -r requirements.ci.txt
           pip install "torch==2.8.0" "torchvision==0.23.0" "torchaudio==2.8.0" --index-url https://download.pytorch.org/whl/cpu
-          pip install pytest pytest-cov httpx
+          pip install pytest pytest-cov coverage black ruff
 
-      - name: Verify Torch & CUDA availability (CPU expected)
+      # --- Linting ---
+      - name: Check formatting with Black
         run: |
-          python - << 'PY'
-          import torch, sys
-          print("Python:", sys.executable)
-          print("Torch:", torch.__version__)
-          print("CUDA toolkit:", torch.version.cuda)
-          print("CUDA available:", torch.cuda.is_available())
-          print("Device:", "cuda" if torch.cuda.is_available() else "cpu")
-          PY
+          black --check src tests
 
-      # --- Verificación de estructura ---
-      - name: Verify src structure
+      - name: Run Ruff linter
+        run: |
+          ruff check src tests
+
+      # --- Validar estructura mínima ---
+      - name: Verify directory structure
         run: |
           echo "Repo root:"
           ls -R .
           echo "SRC content:"
           ls -R src
 
-      # --- Artefactos mínimos ---
+      # --- Artefactos mínimos para pruebas ---
       - name: Create minimal test data artifacts
         run: |
           python - << 'PY'
           import os, pandas as pd
           os.makedirs("data/processed", exist_ok=True)
-
           df = pd.DataFrame({
               "user_id": ["U1","U1","U2","U3","U3","U4"],
               "product_id": ["P1","P2","P2","P3","P4","P1"],
@@ -85,18 +79,18 @@ jobs:
               "product_title": ["Prod 1","Prod 2","Prod 2","Prod 3","Prod 4","Prod 1"],
           })
           df.to_parquet("data/processed/electronics_sample_100k.parquet", index=False)
-          print("Created data/processed/electronics_sample_100k.parquet:", df.shape)
+          print("✅ Sample creado:", df.shape)
           PY
 
-      # --- Tests + Coverage ---
-      - name: Run unit tests with coverage
+      # --- Pruebas y cobertura ---
+      - name: Run tests with coverage
+        env:
+          PYTHONPATH: src
         run: |
-          echo "Using PYTHONPATH=$PYTHONPATH"
-          pytest -q --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
+          pytest -q src --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
           coverage xml -o coverage.xml
 
-      # --- Verificación automática ---
-      - name: Verify pytest log not empty
+      - name: Ensure pytest log is not empty
         run: |
           if [ ! -s pytest.log ]; then
             echo "❌ pytest.log está vacío: no se ejecutaron tests"
@@ -104,7 +98,7 @@ jobs:
           fi
           echo "✅ pytest.log contiene resultados"
 
-      # --- Guardar artefactos ---
+      # --- Subida de artefactos ---
       - name: Upload pytest log
         uses: actions/upload-artifact@v4
         with:
