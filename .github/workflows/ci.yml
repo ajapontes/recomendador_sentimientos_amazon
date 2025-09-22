@@ -22,6 +22,7 @@ jobs:
     env:
       HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
       CUDA_VISIBLE_DEVICES: ""
+      PYTHONPATH: "${{ github.workspace }}/src"
 
     steps:
       - name: Checkout repository
@@ -90,8 +91,10 @@ jobs:
       # --- Tests + Coverage ---
       - name: Run unit tests with coverage
         run: |
-          PYTHONPATH=src pytest -q --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
+          echo "Using PYTHONPATH=$PYTHONPATH"
+          pytest -q --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
           coverage xml -o coverage.xml
+
 
       # --- Verificación automática ---
       - name: Verify pytest log not empty
