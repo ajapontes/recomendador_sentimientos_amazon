@@ -105,11 +105,16 @@ def main():
 
     for u in tqdm(users, desc="Evaluando usuarios"):
         # Recs ItemCF excluyendo vistos en TRAIN
-        recs_itemcf = model.recommend_for_user(u, train, n=cfg.K * 5)  # un poco más para no recortar tras boost
+        recs_itemcf = model.recommend_for_user(
+            u, train, n=cfg.K * 5
+        )  # un poco más para no recortar tras boost
         top_itemcf = recs_itemcf["product_id"].astype(str).head(cfg.K)
 
         # Recs híbridas (reponderadas)
-        recs_hybrid = booster.boost(recs_itemcf, ItemCFHybridParams(beta=cfg.beta, min_reviews_for_sent=cfg.min_reviews_for_sent))
+        recs_hybrid = booster.boost(
+            recs_itemcf,
+            ItemCFHybridParams(beta=cfg.beta, min_reviews_for_sent=cfg.min_reviews_for_sent),
+        )
         top_hybrid = recs_hybrid["product_id"].astype(str).head(cfg.K)
 
         # Relevante (último item del usuario)
@@ -124,7 +129,9 @@ def main():
     print("\n=== Leave-last-1 (HitRate@K) ===")
     print(f"Usuarios evaluados: {len(users)} | K={cfg.K}")
     print(f"ItemCF puro:        {hr_itemcf:.4f}")
-    print(f"Híbrido ItemCF+S:   {hr_hybrid:.4f}   (beta={cfg.beta}, min_reviews_for_sent={cfg.min_reviews_for_sent})")
+    print(
+        f"Híbrido ItemCF+S:   {hr_hybrid:.4f}   (beta={cfg.beta}, min_reviews_for_sent={cfg.min_reviews_for_sent})"
+    )
 
 
 if __name__ == "__main__":

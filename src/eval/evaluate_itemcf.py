@@ -28,7 +28,7 @@ from src.models.itemcf import ItemCFRecommender, ItemCFConfig
 @dataclass(frozen=True)
 class EvalConfig:
     K: int = 10
-    min_rating_like: float = 3.0      # coherente con tu run_itemcf actual
+    min_rating_like: float = 3.0  # coherente con tu run_itemcf actual
     min_item_freq: int = 5
     min_user_interactions: int = 2
     n_neighbors: int = 800

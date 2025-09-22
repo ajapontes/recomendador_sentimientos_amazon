@@ -3,6 +3,7 @@
 import pandas as pd
 from src.models.data_loader import load_ratings
 
+
 def test_load_ratings_sample_columns():
     df = load_ratings(sample=True)
     # columnas mínimas

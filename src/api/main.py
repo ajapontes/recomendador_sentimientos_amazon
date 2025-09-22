@@ -51,15 +51,15 @@ settings = load_settings()
 # ------------------------------------------------------------------------------
 # Caches simples (demo)
 # ------------------------------------------------------------------------------
-_df_cache = None               # DataFrame de reseñas (sample)
-_model_pop_cache = None        # PopularityRecommender ya entrenado
-_pop_scores_cache = None       # Series/DataFrame: score bayesiano por product_id (index)
-_prod_sent_cache = None        # Agregación de sentimiento por product_id
-_catalog_cache = None          # DataFrame: product_id -> product_title
+_df_cache = None  # DataFrame de reseñas (sample)
+_model_pop_cache = None  # PopularityRecommender ya entrenado
+_pop_scores_cache = None  # Series/DataFrame: score bayesiano por product_id (index)
+_prod_sent_cache = None  # Agregación de sentimiento por product_id
+_catalog_cache = None  # DataFrame: product_id -> product_title
 
-_itemcf_model_cache = None     # ItemCFRecommender entrenado
-_itemcf_cfg_cache = None       # Config usada para entrenar ItemCF
-_itemcf_booster = None         # Reponderador por sentimiento para ItemCF
+_itemcf_model_cache = None  # ItemCFRecommender entrenado
+_itemcf_cfg_cache = None  # Config usada para entrenar ItemCF
+_itemcf_booster = None  # Reponderador por sentimiento para ItemCF
 
 # ------------------------------------------------------------------------------
 # Métricas en memoria (6.5.B)
@@ -72,21 +72,26 @@ _metrics_total: Dict[str, Any] = {
     "total_ms": 0.0,
     "max_ms": 0.0,
 }
-_metrics_by_status: Dict[int, Dict[str, Any]] = defaultdict(lambda: {
-    "count": 0,
-    "total_ms": 0.0,
-    "max_ms": 0.0,
-    "avg_ms": 0.0,
-})
-_metrics_by_route: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-    "count": 0,
-    "ok": 0,
-    "error": 0,
-    "total_ms": 0.0,
-    "max_ms": 0.0,
-    "avg_ms": 0.0,
-    "last_status": None,
-})
+_metrics_by_status: Dict[int, Dict[str, Any]] = defaultdict(
+    lambda: {
+        "count": 0,
+        "total_ms": 0.0,
+        "max_ms": 0.0,
+        "avg_ms": 0.0,
+    }
+)
+_metrics_by_route: Dict[str, Dict[str, Any]] = defaultdict(
+    lambda: {
+        "count": 0,
+        "ok": 0,
+        "error": 0,
+        "total_ms": 0.0,
+        "max_ms": 0.0,
+        "avg_ms": 0.0,
+        "last_status": None,
+    }
+)
+
 
 def _metrics_update(route_key: str, status: int, duration_ms: float) -> None:
     """Actualiza contadores globales, por status y por ruta."""
@@ -122,17 +127,23 @@ def _metrics_update(route_key: str, status: int, duration_ms: float) -> None:
         r["avg_ms"] = r["total_ms"] / max(r["count"], 1)
         r["last_status"] = status
 
+
 def _metrics_snapshot() -> Dict[str, Any]:
     """Copia segura de las métricas para exponer en /metrics."""
     with _metrics_lock:
         return {
             "total": {
                 **_metrics_total,
-                "avg_ms": (_metrics_total["total_ms"] / _metrics_total["requests"]) if _metrics_total["requests"] else 0.0
+                "avg_ms": (
+                    (_metrics_total["total_ms"] / _metrics_total["requests"])
+                    if _metrics_total["requests"]
+                    else 0.0
+                ),
             },
             "by_status": {int(k): dict(v) for k, v in _metrics_by_status.items()},
             "by_route": {str(k): dict(v) for k, v in _metrics_by_route.items()},
         }
+
 
 # ------------------------------------------------------------------------------
 # Startup: carga datos y modelos en memoria
@@ -184,11 +195,15 @@ def startup_event() -> None:
         _itemcf_cfg_cache = icf_cfg
         _itemcf_model_cache = ItemCFRecommender(icf_cfg).fit(_df_cache)
         _itemcf_booster = ItemCFSentimentBooster() if _prod_sent_cache is not None else None
-        print("[INFO] ItemCF listo. Booster de sentimiento:", "OK" if _itemcf_booster else "NO DISPONIBLE")
+        print(
+            "[INFO] ItemCF listo. Booster de sentimiento:",
+            "OK" if _itemcf_booster else "NO DISPONIBLE",
+        )
     except Exception as e:
         print(f"[WARN] No se pudo entrenar ItemCF/booster: {e}")
         _itemcf_model_cache = None
         _itemcf_booster = None
+
 
 # ------------------------------------------------------------------------------
 # Utilidades internas
@@ -203,8 +218,9 @@ def _ensure_hybrid_ready() -> None:
         raise HTTPException(
             500,
             "Agregación de sentimiento no disponible. "
-            "Ejecuta el Paso 4.2 (annotate_sentiment) antes de usar endpoints híbridos."
+            "Ejecuta el Paso 4.2 (annotate_sentiment) antes de usar endpoints híbridos.",
         )
+
 
 def _enrich_response(
     df,
@@ -229,7 +245,7 @@ def _enrich_response(
 
     if include_titles:
         _ensure_catalog_ready()  # 👈 asegura catálogo
-        
+
     if include_titles and _catalog_cache is not None and not _catalog_cache.empty:
         out = attach_titles(out, _catalog_cache)
 
@@ -243,6 +259,7 @@ def _enrich_response(
         out = out[cols]
 
     return out.to_dict(orient="records")
+
 
 # --- Lazy init helpers --------------------------------------------------------
 def _ensure_popularity_ready() -> None:
@@ -258,6 +275,7 @@ def _ensure_popularity_ready() -> None:
     if _pop_scores_cache is None:
         _pop_scores_cache = _model_pop_cache.item_scores
 
+
 def _ensure_itemcf_ready() -> None:
     """Garantiza ItemCF listo para responder (sin romper en tests)."""
     global _itemcf_model_cache, _itemcf_cfg_cache
@@ -270,13 +288,14 @@ def _ensure_itemcf_ready() -> None:
             min_rating_like=3.0,
             min_item_freq=5,
             min_user_interactions=2,
-            n_neighbors=300,          # más ágil en tests
+            n_neighbors=300,  # más ágil en tests
             topk_recommendations=20,
         )
         _itemcf_model_cache = ItemCFRecommender(_itemcf_cfg_cache).fit(_df_cache)
     except Exception as e:
         logging.getLogger("api").warning("ItemCF lazy init falló: %s", e)
         _itemcf_model_cache = None
+
 
 def _ensure_catalog_ready() -> None:
     """Garantiza catálogo (product_id -> product_title) cargado para enriquecer respuestas."""
@@ -289,10 +308,12 @@ def _ensure_catalog_ready() -> None:
         logging.getLogger("api").warning("Catálogo lazy init falló: %s", e)
         _catalog_cache = None
 
+
 # ------------------------------------------------------------------------------
 # Middleware de logging + métricas (timing)
 # ------------------------------------------------------------------------------
 logger = logging.getLogger("api")
+
 
 @app.middleware("http")
 async def access_logger(request: Request, call_next):
@@ -331,6 +352,7 @@ async def access_logger(request: Request, call_next):
     _metrics_update(route_path, status, duration_ms)
     return response
 
+
 # ------------------------------------------------------------------------------
 # Endpoints básicos
 # ------------------------------------------------------------------------------
@@ -354,10 +376,12 @@ def root() -> dict:
         ],
     }
 
+
 @app.get("/health")
 def health() -> dict:
     """Endpoint de salud básica del servicio."""
     return {"status": "ok", "project": settings.project.name, "api_port": settings.api.port}
+
 
 # ------------------------------------------------------------------------------
 # Endpoints: Popularidad (baseline)
@@ -369,9 +393,12 @@ def recommend_global(n: int = 10) -> list[dict]:
     _ensure_catalog_ready()  # opcional, ya lo hace _enrich_response
     recs = _model_pop_cache.recommend_global(n)
     return _enrich_response(
-        recs, include_titles=True, include_sentiment=False,
+        recs,
+        include_titles=True,
+        include_sentiment=False,
         keep_cols=["product_id", "product_title", "score", "v", "R"],
     )
+
 
 @app.get("/recommend/user/{user_id}")
 def recommend_user(user_id: str, n: int = 10) -> list[dict]:
@@ -379,9 +406,12 @@ def recommend_user(user_id: str, n: int = 10) -> list[dict]:
     _ensure_popularity_ready()
     recs = _model_pop_cache.recommend_for_user(user_id, _df_cache, n)
     return _enrich_response(
-        recs, include_titles=True, include_sentiment=False,
+        recs,
+        include_titles=True,
+        include_sentiment=False,
         keep_cols=["product_id", "product_title", "score", "v", "R"],
     )
+
 
 # ------------------------------------------------------------------------------
 # Endpoints: Popularidad × Sentimiento (híbrido global)
@@ -390,23 +420,37 @@ def recommend_user(user_id: str, n: int = 10) -> list[dict]:
 def recommend_hybrid_global(
     n: int = 10,
     alpha: float = Query(0.7, ge=0.0, le=1.0, description="Peso de popularidad (0..1)"),
-    min_reviews_for_sent: int = Query(3, ge=0, description="Mín. reseñas con sentimiento para usar señal"),
+    min_reviews_for_sent: int = Query(
+        3, ge=0, description="Mín. reseñas con sentimiento para usar señal"
+    ),
 ) -> list[dict]:
     """Top-N global híbrido: hybrid = alpha*pop_norm + (1-alpha)*sent_norm_adjusted."""
     _ensure_hybrid_ready()
     params = HybridParams(alpha=alpha, min_reviews_for_sent=min_reviews_for_sent)
     hybrid = combine_popularity_and_sentiment(_pop_scores_cache, _prod_sent_cache, params)
     return _enrich_response(
-        hybrid.head(n), include_titles=True, include_sentiment=True,
-        keep_cols=["product_id", "product_title", "hybrid_score", "score", "sentiment_mean", "n_scored"],
+        hybrid.head(n),
+        include_titles=True,
+        include_sentiment=True,
+        keep_cols=[
+            "product_id",
+            "product_title",
+            "hybrid_score",
+            "score",
+            "sentiment_mean",
+            "n_scored",
+        ],
     )
+
 
 @app.get("/recommend/hybrid/user/{user_id}")
 def recommend_hybrid_user(
     user_id: str,
     n: int = 10,
     alpha: float = Query(0.7, ge=0.0, le=1.0, description="Peso de popularidad (0..1)"),
-    min_reviews_for_sent: int = Query(3, ge=0, description="Mín. reseñas con sentimiento para usar señal"),
+    min_reviews_for_sent: int = Query(
+        3, ge=0, description="Mín. reseñas con sentimiento para usar señal"
+    ),
 ) -> list[dict]:
     """
     Top-N híbrido para un usuario:
@@ -419,9 +463,19 @@ def recommend_hybrid_user(
     seen = set(_df_cache.loc[_df_cache["user_id"] == str(user_id), "product_id"].astype(str))
     hybrid_user = hybrid[~hybrid["product_id"].isin(seen)].head(n)
     return _enrich_response(
-        hybrid_user, include_titles=True, include_sentiment=True,
-        keep_cols=["product_id", "product_title", "hybrid_score", "score", "sentiment_mean", "n_scored"],
+        hybrid_user,
+        include_titles=True,
+        include_sentiment=True,
+        keep_cols=[
+            "product_id",
+            "product_title",
+            "hybrid_score",
+            "score",
+            "sentiment_mean",
+            "n_scored",
+        ],
     )
+
 
 # ------------------------------------------------------------------------------
 # Endpoints: ItemCF (personalizado) y Hybrid-ItemCF
@@ -435,21 +489,33 @@ def recommend_itemcf_user(user_id: str, n: int = 10) -> list[dict]:
         # Fallback: devolver populares (200 OK) en vez de 500
         recs = _model_pop_cache.recommend_for_user(user_id, _df_cache, n=n)
         return _enrich_response(
-            recs.head(n), include_titles=True, include_sentiment=False,
+            recs.head(n),
+            include_titles=True,
+            include_sentiment=False,
             keep_cols=["product_id", "product_title", "score", "v", "R"],
         )
     recs = _itemcf_model_cache.recommend_for_user(user_id, _df_cache, n=n)
     return _enrich_response(
-        recs.head(n), include_titles=True, include_sentiment=False,
+        recs.head(n),
+        include_titles=True,
+        include_sentiment=False,
         keep_cols=["product_id", "product_title", "score", "neighbors_hits"],
     )
+
 
 @app.get("/recommend/hybrid_itemcf/user/{user_id}")
 def recommend_hybrid_itemcf_user(
     user_id: str,
     n: int = 10,
-    beta: float = Query(0.5, ge=0.0, le=1.0, description="Atenuación del boost de sentimiento (0=pleno, 1=sin efecto)"),
-    min_reviews_for_sent: int = Query(3, ge=0, description="Mín. reseñas con sentimiento para usar señal"),
+    beta: float = Query(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Atenuación del boost de sentimiento (0=pleno, 1=sin efecto)",
+    ),
+    min_reviews_for_sent: int = Query(
+        3, ge=0, description="Mín. reseñas con sentimiento para usar señal"
+    ),
 ) -> list[dict]:
     """Top-N personalizado con ItemCF reponderado por sentimiento."""
     _ensure_itemcf_ready()
@@ -458,19 +524,35 @@ def recommend_hybrid_itemcf_user(
         # Fallback: sin ItemCF, devolvemos populares
         recs = _model_pop_cache.recommend_for_user(user_id, _df_cache, n=n)
         return _enrich_response(
-            recs.head(n), include_titles=True, include_sentiment=False,
+            recs.head(n),
+            include_titles=True,
+            include_sentiment=False,
             keep_cols=["product_id", "product_title", "score", "v", "R"],
         )
     if _itemcf_booster is None:
-        raise HTTPException(500, "Booster de sentimiento no disponible (falta agregación de sentimiento o error de carga).")
+        raise HTTPException(
+            500,
+            "Booster de sentimiento no disponible (falta agregación de sentimiento o error de carga).",
+        )
 
     base_recs = _itemcf_model_cache.recommend_for_user(user_id, _df_cache, n=max(n * 5, 50))
     params = ItemCFHybridParams(beta=beta, min_reviews_for_sent=min_reviews_for_sent)
     boosted = _itemcf_booster.boost(base_recs, params)
     return _enrich_response(
-        boosted.head(n), include_titles=True, include_sentiment=True,
-        keep_cols=["product_id", "product_title", "score_hybrid", "score", "sentiment_mean", "n_scored", "neighbors_hits"],
+        boosted.head(n),
+        include_titles=True,
+        include_sentiment=True,
+        keep_cols=[
+            "product_id",
+            "product_title",
+            "score_hybrid",
+            "score",
+            "sentiment_mean",
+            "n_scored",
+            "neighbors_hits",
+        ],
     )
+
 
 # ------------------------------------------------------------------------------
 # Endpoint de métricas (6.5.B)

@@ -41,11 +41,11 @@ from src.models.hybrid import (
 @dataclass(frozen=True)
 class EvalConfig:
     K: int = 10
-    min_user_interactions: int = 3   # mínimo de interacciones por usuario en TRAIN
-    min_item_freq: int = 5           # mínimo de interacciones por item en TRAIN para entrar al catálogo
-    cutoff_quantile: float = 0.80    # percentil temporal para dividir TRAIN/TEST
-    alpha: float = 0.7               # peso popularidad en híbrido
-    min_reviews_for_sent: int = 3    # cobertura mínima de sentimiento por producto
+    min_user_interactions: int = 3  # mínimo de interacciones por usuario en TRAIN
+    min_item_freq: int = 5  # mínimo de interacciones por item en TRAIN para entrar al catálogo
+    cutoff_quantile: float = 0.80  # percentil temporal para dividir TRAIN/TEST
+    alpha: float = 0.7  # peso popularidad en híbrido
+    min_reviews_for_sent: int = 3  # cobertura mínima de sentimiento por producto
 
 
 def temporal_split_global(df: pd.DataFrame, q: float) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -118,8 +118,12 @@ def main():
     hits_pop, hits_hyb, total_users = [], [], 0
 
     # Precomputar ranking global (product_id ordenado)
-    pop_global_rank = pop_scores.sort_values("score", ascending=False).reset_index()["product_id"].astype(str)
-    hyb_global_rank = hybrid_df.sort_values("hybrid_score", ascending=False)["product_id"].astype(str)
+    pop_global_rank = (
+        pop_scores.sort_values("score", ascending=False).reset_index()["product_id"].astype(str)
+    )
+    hyb_global_rank = hybrid_df.sort_values("hybrid_score", ascending=False)["product_id"].astype(
+        str
+    )
 
     for u in tqdm(users, desc="Evaluando usuarios"):
         seen_train = set(train.loc[train["user_id"] == u, "product_id"].astype(str))
@@ -148,9 +152,13 @@ def main():
     print(f"Usuarios evaluados: {total_users}")
     print(f"K = {cfg.K}")
     print(f"Baseline (popularidad): {pop_mean:.4f}")
-    print(f"Híbrido (alpha={cfg.alpha}, min_reviews_for_sent={cfg.min_reviews_for_sent}): {hyb_mean:.4f}")
+    print(
+        f"Híbrido (alpha={cfg.alpha}, min_reviews_for_sent={cfg.min_reviews_for_sent}): {hyb_mean:.4f}"
+    )
     if total_users == 0:
-        print("Advertencia: 0 usuarios evaluados. Ajusta filtros (min_user_interactions/min_item_freq) o cutoff_quantile.")
+        print(
+            "Advertencia: 0 usuarios evaluados. Ajusta filtros (min_user_interactions/min_item_freq) o cutoff_quantile."
+        )
 
 
 if __name__ == "__main__":
