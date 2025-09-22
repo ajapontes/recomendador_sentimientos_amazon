@@ -22,7 +22,6 @@ jobs:
     env:
       HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
       CUDA_VISIBLE_DEVICES: ""
-      PYTHONPATH: "${{ github.workspace }}/src"
 
     steps:
       - name: Checkout repository
@@ -64,10 +63,12 @@ jobs:
           PY
 
       # --- Verificación de estructura ---
-      - name: Verify PYTHONPATH and src structure
+      - name: Verify src structure
         run: |
-          echo "Using PYTHONPATH=$PYTHONPATH"
-          ls -R $PYTHONPATH
+          echo "Repo root:"
+          ls -R .
+          echo "SRC content:"
+          ls -R src
 
       # --- Artefactos mínimos ---
       - name: Create minimal test data artifacts
@@ -89,7 +90,7 @@ jobs:
       # --- Tests + Coverage ---
       - name: Run unit tests with coverage
         run: |
-          pytest -q --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
+          PYTHONPATH=src pytest -q --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
           coverage xml -o coverage.xml
 
       # --- Verificación automática ---
