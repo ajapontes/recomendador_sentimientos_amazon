@@ -16,14 +16,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]     # Puedes añadir windows-latest / macos-latest si quieres
+        os: [ubuntu-latest]
         python-version: ["3.11"]
 
     env:
-      # Evita warning de symlinks en runners Linux
-      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
-      # Forzamos modo CPU para que los tests no fallen al no haber GPU
-      CUDA_VISIBLE_DEVICES: ""
+      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"   # Silencia warning de symlinks de HuggingFace
+      CUDA_VISIBLE_DEVICES: ""               # Forzar modo CPU (no GPU en CI)
 
     steps:
       - name: Checkout repository
@@ -47,7 +45,7 @@ jobs:
           echo "requirements.ci.txt:"
           cat requirements.ci.txt
 
-      - name: Install dependencies (project + test tools)
+      - name: Install dependencies (project)
         run: |
           pip install -r requirements.ci.txt
           pip install "torch==2.8.0" "torchvision==0.23.0" "torchaudio==2.8.0" --index-url https://download.pytorch.org/whl/cpu
@@ -64,7 +62,7 @@ jobs:
           print("Device:", "cuda" if torch.cuda.is_available() else "cpu")
           PY
 
-      # --- Artefactos mínimos para tests ---
+      # --- Artefactos mínimos ---
       - name: Create minimal test data artifacts
         run: |
           python - << 'PY'
@@ -78,15 +76,24 @@ jobs:
               "product_title": ["Prod 1","Prod 2","Prod 2","Prod 3","Prod 4","Prod 1"],
           })
           df.to_parquet("data/processed/electronics_sample_100k.parquet", index=False)
-          print("Wrote data/processed/electronics_sample_100k.parquet:", df.shape)
+          print("Created data/processed/electronics_sample_100k.parquet:", df.shape)
           PY
 
-      # --- Tests ---
-      - name: Run unit tests
+      # --- Tests + Coverage ---
+      - name: Run unit tests with coverage
         run: |
-          pytest -q --maxfail=1
+          pytest -q --cov=src --cov-report=term-missing --maxfail=1 | tee pytest.log
+          coverage xml -o coverage.xml
 
-      # Reporte de cobertura (opcional)
-      # - name: Run tests with coverage
-      #   run: |
-      #     pytest -q --cov=src --cov-report=term-missing
+      # --- Guardar artefactos ---
+      - name: Upload pytest log
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-log
+          path: pytest.log
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
