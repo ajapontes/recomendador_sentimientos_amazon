@@ -1,0 +1,106 @@
+name: CI - Build, Test & Report
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  test-project:
+    name: Run unit tests (Python ${{ matrix.python-version }} • ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]     # Puedes añadir windows-latest / macos-latest si quieres
+        python-version: ["3.11"]
+
+    env:
+      # Evita warning de symlinks en runners Linux
+      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
+      # Forzamos modo CPU para que los tests no fallen al no haber GPU
+      CUDA_VISIBLE_DEVICES: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Show Python and pip versions
+        run: |
+          python -V
+          pip -V
+
+      # --- Dependencias ---
+      # Instalamos requirements SIN los paquetes CUDA, y añadimos Torch CPU explícitamente.
+      - name: Prepare CI requirements (exclude CUDA wheels)
+        run: |
+          awk '!/^(torch|torchvision|torchaudio)==/' requirements.txt > requirements.ci.txt
+          echo "requirements.ci.txt:"
+          cat requirements.ci.txt
+
+      - name: Install dependencies (project)
+        run: |
+          pip install -r requirements.ci.txt
+          pip install "torch==2.8.0" "torchvision==0.23.0" "torchaudio==2.8.0" --index-url https://download.pytorch.org/whl/cpu
+          # Herramientas de test si hicieran falta
+          pip install pytest pytest-cov
+
+      - name: Verify Torch & CUDA availability (CPU expected)
+        run: |
+          python - << 'PY'
+          import torch, sys
+          print("Python:", sys.executable)
+          print("Torch:", torch.__version__)
+          print("CUDA toolkit:", torch.version.cuda)
+          print("CUDA available:", torch.cuda.is_available())
+          print("Device:", "cuda" if torch.cuda.is_available() else "cpu")
+          PY
+
+      # --- Artefactos mínimos para tests ---
+      # Creamos un parquet mínimo para que la API pueda arrancar y los tests de smoke pasen.
+      - name: Create minimal test data artifacts
+        run: |
+          python - << 'PY'
+          import os, pandas as pd, numpy as np
+          os.makedirs("data/processed", exist_ok=True)
+
+          # Muestra mínima con las columnas que usa el proyecto en tests
+          df = pd.DataFrame({
+              "user_id": ["U1","U1","U2","U3","U3","U4"],
+              "product_id": ["P1","P2","P2","P3","P4","P1"],
+              "rating": [5,4,5,3,5,4],
+              "product_title": ["Prod 1","Prod 2","Prod 2","Prod 3","Prod 4","Prod 1"],
+          })
+          df.to_parquet("data/processed/electronics_sample_100k.parquet", index=False)
+          print("Wrote data/processed/electronics_sample_100k.parquet:", df.shape)
+
+          # (Opcional) Archivo de sentimiento: no es requerido por los tests smoke,
+          # pero puedes descomentar si en el futuro lo necesitas.
+          # prod = pd.DataFrame({
+          #   "product_id": ["P1","P2","P3","P4"],
+          #   "n_scored": [5,3,2,4],
+          #   "sentiment_mean": [0.9,0.7,0.5,0.8],
+          # })
+          # prod.to_parquet("data/processed/product_sentiment_agg.parquet", index=False)
+
+          PY
+
+      # --- Tests ---
+      - name: Run unit tests
+        run: |
+          pytest -q --maxfail=1
+
+      # Reporte de cobertura (opcional; deja comentado si aún no lo usas)
+      # - name: Run tests with coverage
+      #   run: |
+      #     pytest -q --cov=src --cov-report=term-missing
