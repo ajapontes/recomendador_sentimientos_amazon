@@ -3,6 +3,7 @@
 from src.models.data_loader import load_ratings
 from src.models.baseline import PopularityRecommender
 
+
 def test_popularity_recommender_topn():
     df = load_ratings(sample=True)
     model = PopularityRecommender(m=None, topk=10).fit(df)

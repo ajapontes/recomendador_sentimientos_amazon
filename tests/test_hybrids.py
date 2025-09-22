@@ -27,10 +27,15 @@ def test_popularity_sentiment_hybrid_shapes():
 
 def test_itemcf_with_sentiment_boost():
     df = load_ratings(sample=True)
-    icf = ItemCFRecommender(ItemCFConfig(
-        min_rating_like=3.0, min_item_freq=5, min_user_interactions=2,
-        n_neighbors=150, topk_recommendations=10
-    )).fit(df)
+    icf = ItemCFRecommender(
+        ItemCFConfig(
+            min_rating_like=3.0,
+            min_item_freq=5,
+            min_user_interactions=2,
+            n_neighbors=150,
+            topk_recommendations=10,
+        )
+    ).fit(df)
 
     # base recs (para un usuario)
     u = str(df["user_id"].astype(str).iloc[0])

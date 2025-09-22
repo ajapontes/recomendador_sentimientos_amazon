@@ -8,25 +8,30 @@ from dataclasses import dataclass
 from pathlib import Path
 import yaml
 
+
 @dataclass
 class ProjectConfig:
     name: str
     seed: int
+
 
 @dataclass
 class PathsConfig:
     data_raw: str
     data_processed: str
 
+
 @dataclass
 class ModelConfig:
     sentiment_model: str
     use_cuda: bool
 
+
 @dataclass
 class APIConfig:
     host: str
     port: int
+
 
 @dataclass
 class Settings:
@@ -34,6 +39,7 @@ class Settings:
     paths: PathsConfig
     model: ModelConfig
     api: APIConfig
+
 
 def load_settings(path: str = "settings.yaml") -> Settings:
     """

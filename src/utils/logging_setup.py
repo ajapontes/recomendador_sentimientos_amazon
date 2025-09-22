@@ -24,9 +24,7 @@ def setup_logging(level: Optional[str] = None) -> None:
         Nivel de logging ("DEBUG", "INFO", "WARNING", "ERROR"). Por defecto "INFO".
     """
     log_level = (level or "INFO").upper()
-    fmt = (
-        "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-    )
+    fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
     datefmt = "%Y-%m-%d %H:%M:%S"
 
     # Root logger
