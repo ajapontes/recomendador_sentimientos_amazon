@@ -22,7 +22,7 @@ jobs:
 env:
   HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
   CUDA_VISIBLE_DEVICES: ""
-  PYTHONPATH: "${{ github.workspace }}/recomendador_sentimientos_amazon/src"
+  PYTHONPATH: "${{ github.workspace }}/src"
 
     steps:
       - name: Checkout repository
