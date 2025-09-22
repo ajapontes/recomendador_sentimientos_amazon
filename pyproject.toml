@@ -1,4 +1,20 @@
 # pyproject.toml
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "recomendador_sentimientos_amazon"
+version = "0.1.0"
+description = "Recomendador híbrido con popularidad, CF y análisis de sentimiento en reseñas de Amazon Electronics."
+authors = [
+  { name="Alfredo Aponte", email="tu_email@ejemplo.com" }
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
