@@ -19,9 +19,10 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.11"]
 
-    env:
-      HF_HUB_DISABLE_SYMLINKS_WARNING: "1"   # Silencia warning de symlinks de HuggingFace
-      CUDA_VISIBLE_DEVICES: ""               # Forzar modo CPU (no GPU en CI)
+env:
+  HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
+  CUDA_VISIBLE_DEVICES: ""
+  PYTHONPATH: "${{ github.workspace }}/recomendador_sentimientos_amazon"
 
     steps:
       - name: Checkout repository
