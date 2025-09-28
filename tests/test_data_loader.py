@@ -1,6 +1,6 @@
 # tests/test_data_loader.py
-# -*- coding: utf-8 -*-
 import pandas as pd
+
 from src.models.data_loader import load_ratings
 
 

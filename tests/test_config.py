@@ -1,6 +1,6 @@
 # tests/test_config.py
-# -*- coding: utf-8 -*-
 import os
+
 from src.utils.config import load_settings
 
 

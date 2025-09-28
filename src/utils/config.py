@@ -6,6 +6,7 @@ Carga y mapeo de configuración del proyecto desde settings.yaml
 
 from dataclasses import dataclass
 from pathlib import Path
+
 import yaml
 
 
@@ -49,7 +50,7 @@ def load_settings(path: str = "settings.yaml") -> Settings:
     yaml_path = Path(path)
     if not yaml_path.exists():
         raise FileNotFoundError(f"No se encontró el archivo {path}")
-    with open(yaml_path, "r", encoding="utf-8") as f:
+    with open(yaml_path, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
     return Settings(

@@ -1,5 +1,4 @@
 # src/api/main.py
-# -*- coding: utf-8 -*-
 """
 API del Recomendador (Electrónica Amazon) con señales de popularidad y sentimiento.
 
@@ -21,26 +20,26 @@ Notas:
   se inicializan al vuelo para evitar 500 en smoke tests.
 """
 
-import time
 import logging
 import threading
+import time
 from collections import defaultdict
-from typing import Dict, Any
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 
-from src.utils.logging_setup import setup_logging
-from src.utils.config import load_settings
-from src.models.data_loader import load_ratings
 from src.models.baseline import PopularityRecommender
+from src.models.catalog import attach_titles, load_catalog  # catálogo
+from src.models.data_loader import load_ratings
 from src.models.hybrid import (
-    load_product_sentiment,
-    combine_popularity_and_sentiment,
     HybridParams,
+    combine_popularity_and_sentiment,
+    load_product_sentiment,
 )
-from src.models.itemcf import ItemCFRecommender, ItemCFConfig
-from src.models.hybrid_itemcf import ItemCFSentimentBooster, ItemCFHybridParams
-from src.models.catalog import load_catalog, attach_titles  # catálogo
+from src.models.hybrid_itemcf import ItemCFHybridParams, ItemCFSentimentBooster
+from src.models.itemcf import ItemCFConfig, ItemCFRecommender
+from src.utils.config import load_settings
+from src.utils.logging_setup import setup_logging
 
 # ------------------------------------------------------------------------------
 # App & Settings
@@ -65,14 +64,14 @@ _itemcf_booster = None  # Reponderador por sentimiento para ItemCF
 # Métricas en memoria (6.5.B)
 # ------------------------------------------------------------------------------
 _metrics_lock = threading.Lock()
-_metrics_total: Dict[str, Any] = {
+_metrics_total: dict[str, Any] = {
     "requests": 0,
     "ok": 0,
     "error": 0,
     "total_ms": 0.0,
     "max_ms": 0.0,
 }
-_metrics_by_status: Dict[int, Dict[str, Any]] = defaultdict(
+_metrics_by_status: dict[int, dict[str, Any]] = defaultdict(
     lambda: {
         "count": 0,
         "total_ms": 0.0,
@@ -80,7 +79,7 @@ _metrics_by_status: Dict[int, Dict[str, Any]] = defaultdict(
         "avg_ms": 0.0,
     }
 )
-_metrics_by_route: Dict[str, Dict[str, Any]] = defaultdict(
+_metrics_by_route: dict[str, dict[str, Any]] = defaultdict(
     lambda: {
         "count": 0,
         "ok": 0,
@@ -128,7 +127,7 @@ def _metrics_update(route_key: str, status: int, duration_ms: float) -> None:
         r["last_status"] = status
 
 
-def _metrics_snapshot() -> Dict[str, Any]:
+def _metrics_snapshot() -> dict[str, Any]:
     """Copia segura de las métricas para exponer en /metrics."""
     with _metrics_lock:
         return {
@@ -558,7 +557,7 @@ def recommend_hybrid_itemcf_user(
 # Endpoint de métricas (6.5.B)
 # ------------------------------------------------------------------------------
 @app.get("/metrics")
-def metrics() -> Dict[str, Any]:
+def metrics() -> dict[str, Any]:
     """
     Métricas ligeras en memoria (JSON):
     - total: requests, ok, error, avg_ms, max_ms

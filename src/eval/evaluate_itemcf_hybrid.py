@@ -1,5 +1,4 @@
 # src/eval/evaluate_itemcf_hybrid.py
-# -*- coding: utf-8 -*-
 """
 Evaluación leave-last-1 comparando:
 - ItemCF puro
@@ -9,16 +8,16 @@ Métrica: HitRate@K
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from src.models.data_loader import load_ratings
-from src.models.itemcf import ItemCFRecommender, ItemCFConfig
-from src.models.hybrid_itemcf import ItemCFSentimentBooster, ItemCFHybridParams
+from src.models.hybrid_itemcf import ItemCFHybridParams, ItemCFSentimentBooster
+from src.models.itemcf import ItemCFConfig, ItemCFRecommender
 
 
 @dataclass(frozen=True)
@@ -32,7 +31,7 @@ class EvalConfig:
     min_reviews_for_sent: int = 3
 
 
-def _leave_last_split_user(df_u: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def _leave_last_split_user(df_u: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     if len(df_u) < 2:
         return df_u.iloc[:0], df_u
     return df_u.iloc[:-1], df_u.iloc[-1:]
@@ -64,7 +63,7 @@ def main():
 
     # 3) Leave-last-1 per user
     trains, tests = [], []
-    for uid, df_u in df.groupby("user_id", sort=False):
+    for _uid, df_u in df.groupby("user_id", sort=False):
         tr, te = _leave_last_split_user(df_u)
         if not tr.empty and not te.empty:
             trains.append(tr)

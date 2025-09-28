@@ -1,8 +1,8 @@
 # tests/test_itemcf.py
-# -*- coding: utf-8 -*-
 import pandas as pd
+
 from src.models.data_loader import load_ratings
-from src.models.itemcf import ItemCFRecommender, ItemCFConfig
+from src.models.itemcf import ItemCFConfig, ItemCFRecommender
 
 
 def test_itemcf_fit_and_recommend_shape():

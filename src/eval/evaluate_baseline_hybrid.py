@@ -1,5 +1,4 @@
 # src/eval/evaluate_baseline_hybrid.py
-# -*- coding: utf-8 -*-
 """
 Evaluación temporal global (HitRate@K) para Baseline vs Híbrido.
 
@@ -22,19 +21,19 @@ Requisitos: pandas, numpy, pyarrow, tqdm
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from src.models.data_loader import load_ratings
 from src.models.baseline import PopularityRecommender
+from src.models.data_loader import load_ratings
 from src.models.hybrid import (
-    load_product_sentiment,
-    combine_popularity_and_sentiment,
     HybridParams,
+    combine_popularity_and_sentiment,
+    load_product_sentiment,
 )
 
 
@@ -48,7 +47,7 @@ class EvalConfig:
     min_reviews_for_sent: int = 3  # cobertura mínima de sentimiento por producto
 
 
-def temporal_split_global(df: pd.DataFrame, q: float) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def temporal_split_global(df: pd.DataFrame, q: float) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Split temporal global: TRAIN = <= q-quantile(review_date), TEST = > q-quantile.
 
