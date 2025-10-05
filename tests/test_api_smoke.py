@@ -1,6 +1,6 @@
 # tests/test_api_smoke.py
-# -*- coding: utf-8 -*-
 from fastapi.testclient import TestClient
+
 from src.api.main import app
 
 client = TestClient(app)

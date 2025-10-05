@@ -1,20 +1,25 @@
 # tests/test_hybrids.py
-# -*- coding: utf-8 -*-
 import pandas as pd
 
-from src.models.data_loader import load_ratings
-from src.models.hybrid import load_product_sentiment, combine_popularity_and_sentiment, HybridParams
 from src.models.baseline import PopularityRecommender
-from src.models.itemcf import ItemCFRecommender, ItemCFConfig
-from src.models.hybrid_itemcf import ItemCFSentimentBooster, ItemCFHybridParams
+from src.models.data_loader import load_ratings
+from src.models.hybrid import (
+    HybridParams,
+    combine_popularity_and_sentiment,
+    load_product_sentiment,
+)
+from src.models.hybrid_itemcf import ItemCFHybridParams, ItemCFSentimentBooster
+from src.models.itemcf import ItemCFConfig, ItemCFRecommender
 
 
 def test_popularity_sentiment_hybrid_shapes():
+    """Prueba que combine_popularity_and_sentiment devuelva un DataFrame válido."""
     df = load_ratings(sample=True)
     pop = PopularityRecommender(m=None, topk=10).fit(df)
     pop_scores = pop.item_scores  # index: product_id, cols: score,v,R
 
-    prod_sent = load_product_sentiment()  # generado en 4.2
+    # cargar los sentimientos agregados (parquet generado en etapa previa)
+    prod_sent = load_product_sentiment()
     params = HybridParams(alpha=0.7, min_reviews_for_sent=3)
 
     hybrid = combine_popularity_and_sentiment(pop_scores, prod_sent, params)
@@ -26,18 +31,22 @@ def test_popularity_sentiment_hybrid_shapes():
 
 
 def test_itemcf_with_sentiment_boost():
+    """Prueba que ItemCFSentimentBooster devuelva recomendaciones válidas."""
     df = load_ratings(sample=True)
-    icf = ItemCFRecommender(ItemCFConfig(
-        min_rating_like=3.0, min_item_freq=5, min_user_interactions=2,
-        n_neighbors=150, topk_recommendations=10
-    )).fit(df)
+    icf = ItemCFRecommender(
+        ItemCFConfig(
+            min_rating_like=3.0,
+            min_item_freq=5,
+            min_user_interactions=2,
+            n_neighbors=150,
+            topk_recommendations=10,
+        )
+    ).fit(df)
 
     # base recs (para un usuario)
     u = str(df["user_id"].astype(str).iloc[0])
     base_recs = icf.recommend_for_user(u, df, n=20)
 
-    # booster
-    prod_sent = load_product_sentiment()
     booster = ItemCFSentimentBooster()
     boosted = booster.boost(base_recs, ItemCFHybridParams(beta=0.5, min_reviews_for_sent=3))
 

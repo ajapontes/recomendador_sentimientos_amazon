@@ -1,8 +1,9 @@
 # tests/test_itemcf.py
-# -*- coding: utf-8 -*-
 import pandas as pd
+
 from src.models.data_loader import load_ratings
-from src.models.itemcf import ItemCFRecommender, ItemCFConfig
+from src.models.itemcf import ItemCFConfig, ItemCFRecommender
+
 
 def test_itemcf_fit_and_recommend_shape():
     df = load_ratings(sample=True)
@@ -24,6 +25,7 @@ def test_itemcf_fit_and_recommend_shape():
     # columnas mínimas
     for col in ["product_id", "score", "neighbors_hits"]:
         assert col in recs.columns
+
 
 def test_itemcf_fallback_on_cold_user():
     df = load_ratings(sample=True)

@@ -1,5 +1,4 @@
 # src/eval/evaluate_itemcf.py
-# -*- coding: utf-8 -*-
 """
 Evaluación leave-last-1 para Item-Item CF con HitRate@K.
 
@@ -14,27 +13,27 @@ Procedimiento:
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from src.models.data_loader import load_ratings
-from src.models.itemcf import ItemCFRecommender, ItemCFConfig
+from src.models.itemcf import ItemCFConfig, ItemCFRecommender
 
 
 @dataclass(frozen=True)
 class EvalConfig:
     K: int = 10
-    min_rating_like: float = 3.0      # coherente con tu run_itemcf actual
+    min_rating_like: float = 3.0  # coherente con tu run_itemcf actual
     min_item_freq: int = 5
     min_user_interactions: int = 2
     n_neighbors: int = 800
 
 
-def _leave_last_split_user(df_u: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def _leave_last_split_user(df_u: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Devuelve (train, test) dejando la última fila como test."""
     if len(df_u) < 2:
         return df_u.iloc[:0], df_u
@@ -65,7 +64,7 @@ def main():
 
     # 3) Split leave-last-1 por usuario → construir TRAIN global y TEST global
     trains, tests = [], []
-    for uid, df_u in df.groupby("user_id", sort=False):
+    for _uid, df_u in df.groupby("user_id", sort=False):
         tr, te = _leave_last_split_user(df_u)
         if not tr.empty and not te.empty:
             trains.append(tr)
